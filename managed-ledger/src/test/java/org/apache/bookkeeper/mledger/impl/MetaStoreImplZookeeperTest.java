@@ -1,17 +1,20 @@
 /**
- * Copyright 2016 Yahoo Inc.
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership.  The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
  *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
+ *   http://www.apache.org/licenses/LICENSE-2.0
  *
- *     http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
+ * Unless required by applicable law or agreed to in writing,
+ * software distributed under the License is distributed on an
+ * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+ * KIND, either express or implied.  See the License for the
+ * specific language governing permissions and limitations
+ * under the License.
  */
 package org.apache.bookkeeper.mledger.impl;
 
@@ -23,7 +26,7 @@ import java.util.concurrent.atomic.AtomicReference;
 
 import org.apache.bookkeeper.mledger.ManagedLedgerException.MetaStoreException;
 import org.apache.bookkeeper.mledger.impl.MetaStore.MetaStoreCallback;
-import org.apache.bookkeeper.mledger.impl.MetaStore.Version;
+import org.apache.bookkeeper.mledger.impl.MetaStore.Stat;
 import org.apache.bookkeeper.mledger.proto.MLDataFormats;
 import org.apache.bookkeeper.mledger.proto.MLDataFormats.ManagedCursorInfo;
 import org.apache.bookkeeper.mledger.proto.MLDataFormats.ManagedLedgerInfo;
@@ -58,7 +61,7 @@ public class MetaStoreImplZookeeperTest extends MockedBookKeeperTestCase {
 
         store.removeManagedLedger("non-existing", new MetaStoreCallback<Void>() {
             @Override
-            public void operationComplete(Void result, Version version) {
+            public void operationComplete(Void result, Stat version) {
                 counter.countDown();
             }
 
@@ -89,7 +92,7 @@ public class MetaStoreImplZookeeperTest extends MockedBookKeeperTestCase {
                 latch.countDown();
             }
 
-            public void operationComplete(ManagedLedgerInfo result, Version version) {
+            public void operationComplete(ManagedLedgerInfo result, Stat version) {
                 fail("Operation should have failed");
             }
         });
@@ -113,7 +116,7 @@ public class MetaStoreImplZookeeperTest extends MockedBookKeeperTestCase {
                 latch.countDown();
             }
 
-            public void operationComplete(ManagedCursorInfo result, Version version) {
+            public void operationComplete(ManagedCursorInfo result, Stat version) {
                 fail("Operation should have failed");
             }
         });
@@ -135,7 +138,7 @@ public class MetaStoreImplZookeeperTest extends MockedBookKeeperTestCase {
                 latch.countDown();
             }
 
-            public void operationComplete(ManagedLedgerInfo result, Version version) {
+            public void operationComplete(ManagedLedgerInfo result, Stat version) {
                 fail("Operation should have failed");
             }
         });
@@ -157,7 +160,7 @@ public class MetaStoreImplZookeeperTest extends MockedBookKeeperTestCase {
                 fail("should have succeeded");
             }
 
-            public void operationComplete(Void result, Version version) {
+            public void operationComplete(Void result, Stat version) {
                 // Update again using the version
                 zkc.failNow(Code.CONNECTIONLOSS);
 
@@ -169,7 +172,7 @@ public class MetaStoreImplZookeeperTest extends MockedBookKeeperTestCase {
                     }
 
                     @Override
-                    public void operationComplete(Void result, Version version) {
+                    public void operationComplete(Void result, Stat version) {
                         fail("should have failed");
                     }
                 });
@@ -192,7 +195,7 @@ public class MetaStoreImplZookeeperTest extends MockedBookKeeperTestCase {
                 fail("should have succeeded");
             }
 
-            public void operationComplete(ManagedLedgerInfo mlInfo, Version version) {
+            public void operationComplete(ManagedLedgerInfo mlInfo, Stat version) {
                 // Update again using the version
                 zkc.failNow(Code.BADVERSION);
 
@@ -203,7 +206,7 @@ public class MetaStoreImplZookeeperTest extends MockedBookKeeperTestCase {
                     }
 
                     @Override
-                    public void operationComplete(Void result, Version version) {
+                    public void operationComplete(Void result, Stat version) {
                         fail("should have failed");
                     }
                 });

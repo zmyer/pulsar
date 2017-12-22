@@ -1,17 +1,20 @@
 /**
- * Copyright 2016 Yahoo Inc.
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership.  The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
  *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
+ *   http://www.apache.org/licenses/LICENSE-2.0
  *
- *     http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
+ * Unless required by applicable law or agreed to in writing,
+ * software distributed under the License is distributed on an
+ * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+ * KIND, either express or implied.  See the License for the
+ * specific language governing permissions and limitations
+ * under the License.
  */
 package org.apache.bookkeeper.mledger.impl;
 
@@ -40,11 +43,11 @@ import org.apache.bookkeeper.mledger.ManagedLedgerFactory;
 import org.apache.bookkeeper.mledger.ManagedLedgerFactoryConfig;
 import org.apache.bookkeeper.mledger.Position;
 import org.apache.bookkeeper.test.BookKeeperClusterTestCase;
+import org.apache.pulsar.common.policies.data.PersistentOfflineTopicStats;
 import org.testng.annotations.Test;
 
 import com.google.common.base.Charsets;
 import com.google.common.collect.Lists;
-import com.yahoo.pulsar.common.policies.data.PersistentOfflineTopicStats;
 
 public class ManagedLedgerBkTest extends BookKeeperClusterTestCase {
 
@@ -273,6 +276,9 @@ public class ManagedLedgerBkTest extends BookKeeperClusterTestCase {
             future.get();
         }
 
+        // Since in this test we roll-over the cursor ledger every 10 entries acknowledged, the background roll back
+        // might still be happening when the futures are completed.
+        Thread.sleep(1000);
         factory.shutdown();
     }
 
@@ -422,5 +428,37 @@ public class ManagedLedgerBkTest extends BookKeeperClusterTestCase {
                 (ManagedLedgerFactoryImpl) factory, "property/cluster/namespace/my-ledger");
         factory.shutdown();
         assertNotNull(offlineTopicStats);
+    }
+
+    @Test(timeOut = 20000)
+    void testResetCursorAfterRecovery() throws Exception {
+        ManagedLedgerFactory factory = new ManagedLedgerFactoryImpl(bkc, zkc);
+        ManagedLedgerConfig conf = new ManagedLedgerConfig().setMaxEntriesPerLedger(10).setEnsembleSize(1)
+                .setWriteQuorumSize(1).setAckQuorumSize(1).setMetadataEnsembleSize(1).setMetadataWriteQuorumSize(1)
+                .setMetadataAckQuorumSize(1);
+        ManagedLedger ledger = factory.open("my_test_move_cursor_ledger", conf);
+        ManagedCursor cursor = ledger.openCursor("trc1");
+        Position p1 = ledger.addEntry("dummy-entry-1".getBytes());
+        Position p2 = ledger.addEntry("dummy-entry-2".getBytes());
+        Position p3 = ledger.addEntry("dummy-entry-3".getBytes());
+        Position p4 = ledger.addEntry("dummy-entry-4".getBytes());
+
+        cursor.markDelete(p3);
+
+        ManagedLedgerFactory factory2 = new ManagedLedgerFactoryImpl(bkc, zkc);
+        ledger = factory2.open("my_test_move_cursor_ledger", conf);
+        cursor = ledger.openCursor("trc1");
+
+        assertEquals(cursor.getMarkDeletedPosition(), p3);
+        assertEquals(cursor.getReadPosition(), p4);
+        assertEquals(cursor.getNumberOfEntriesInBacklog(), 1);
+
+        cursor.resetCursor(p2);
+        assertEquals(cursor.getMarkDeletedPosition(), p1);
+        assertEquals(cursor.getReadPosition(), p2);
+        assertEquals(cursor.getNumberOfEntriesInBacklog(), 3);
+
+        factory2.shutdown();
+        factory.shutdown();
     }
 }

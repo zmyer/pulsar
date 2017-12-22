@@ -1,17 +1,20 @@
 /**
- * Copyright 2016 Yahoo Inc.
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership.  The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
  *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
+ *   http://www.apache.org/licenses/LICENSE-2.0
  *
- *     http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
+ * Unless required by applicable law or agreed to in writing,
+ * software distributed under the License is distributed on an
+ * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+ * KIND, either express or implied.  See the License for the
+ * specific language governing permissions and limitations
+ * under the License.
  */
 package org.apache.bookkeeper.mledger.impl;
 
@@ -20,7 +23,9 @@ import static org.testng.Assert.assertFalse;
 import static org.testng.Assert.assertTrue;
 import static org.testng.Assert.fail;
 
+import java.util.Collections;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 
 import org.apache.bookkeeper.mledger.AsyncCallbacks;
@@ -38,6 +43,7 @@ import org.testng.annotations.Test;
 
 import com.google.common.base.Predicate;
 import com.google.common.collect.Lists;
+import com.google.common.collect.Sets;
 
 @Test
 public class ManagedCursorContainerTest {
@@ -52,6 +58,16 @@ public class ManagedCursorContainerTest {
             this.container = container;
             this.name = name;
             this.position = position;
+        }
+
+        @Override
+        public Map<String, Long> getProperties() {
+            return Collections.emptyMap();
+        }
+
+        @Override
+        public boolean isDurable() {
+            return true;
         }
 
         @Override
@@ -81,12 +97,23 @@ public class ManagedCursorContainerTest {
 
         @Override
         public void markDelete(Position position) throws ManagedLedgerException {
+            markDelete(position, Collections.emptyMap());
+        }
+
+        @Override
+        public void markDelete(Position position, Map<String, Long> properties) throws ManagedLedgerException {
             this.position = position;
             container.cursorUpdated(this, (PositionImpl) position);
         }
 
         @Override
         public void asyncMarkDelete(Position position, MarkDeleteCallback callback, Object ctx) {
+            fail();
+        }
+
+        @Override
+        public void asyncMarkDelete(Position position, Map<String, Long> properties, MarkDeleteCallback callback,
+                Object ctx) {
             fail();
         }
 
@@ -184,7 +211,8 @@ public class ManagedCursorContainerTest {
         }
 
         @Override
-        public void asyncReplayEntries(Set<? extends Position> positions, ReadEntriesCallback callback, Object ctx) {
+        public Set<? extends Position> asyncReplayEntries(Set<? extends Position> positions, ReadEntriesCallback callback, Object ctx) {
+            return Sets.newConcurrentHashSet();
         }
 
         @Override
@@ -224,6 +252,25 @@ public class ManagedCursorContainerTest {
         @Override
         public boolean isActive() {
             return true;
+        }
+
+        @Override
+        public long getNumberOfEntriesSinceFirstNotAckedMessage() {
+            return 0;
+        }
+
+        @Override
+        public int getTotalNonContiguousDeletedMessagesRange() {
+            return 0;
+        }
+
+        @Override
+        public void setThrottleMarkDelete(double throttleMarkDelete) {
+        }
+
+        @Override
+        public double getThrottleMarkDelete() {
+            return -1;
         }
     }
 

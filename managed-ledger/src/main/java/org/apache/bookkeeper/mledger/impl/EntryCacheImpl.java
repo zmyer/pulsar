@@ -1,17 +1,20 @@
 /**
- * Copyright 2016 Yahoo Inc.
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership.  The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
  *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
+ *   http://www.apache.org/licenses/LICENSE-2.0
  *
- *     http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
+ * Unless required by applicable law or agreed to in writing,
+ * software distributed under the License is distributed on an
+ * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+ * KIND, either express or implied.  See the License for the
+ * specific language governing permissions and limitations
+ * under the License.
  */
 package org.apache.bookkeeper.mledger.impl;
 
@@ -24,6 +27,7 @@ import java.util.List;
 
 import org.apache.bookkeeper.client.AsyncCallback.ReadCallback;
 import org.apache.bookkeeper.client.BKException;
+import org.apache.bookkeeper.client.LedgerEntry;
 import org.apache.bookkeeper.client.LedgerHandle;
 import org.apache.bookkeeper.mledger.AsyncCallbacks.ReadEntriesCallback;
 import org.apache.bookkeeper.mledger.AsyncCallbacks.ReadEntryCallback;
@@ -53,6 +57,7 @@ public class EntryCacheImpl implements EntryCache {
     private static final double MB = 1024 * 1024;
 
     private static final Weighter<EntryImpl> entryWeighter = new Weighter<EntryImpl>() {
+        @Override
         public long getSize(EntryImpl entry) {
             return entry.getLength();
         }
@@ -81,7 +86,8 @@ public class EntryCacheImpl implements EntryCache {
             11, // maxOrder
             64, // tinyCacheSize
             32, // smallCacheSize
-            8 // normalCacheSize
+            8, // normalCacheSize,
+            true // Use cache for all threads
     );
 
     @Override
@@ -118,12 +124,15 @@ public class EntryCacheImpl implements EntryCache {
             entryBuf.readerIndex(readerIdx);
         }
 
-        if (entries.put(entry.getPosition(), new EntryImpl(entry.getPosition(), cachedData))) {
+        PositionImpl position = entry.getPosition();
+        EntryImpl cacheEntry = EntryImpl.create(position, cachedData);
+        cachedData.release();
+        if (entries.put(position, cacheEntry)) {
             manager.entryAdded(entry.getLength());
             return true;
         } else {
-            // Buffer was not inserted into cache, we need to discard it
-            cachedData.release();
+            // entry was not inserted into cache, we need to discard it
+            cacheEntry.release();
             return false;
         }
     }
@@ -140,7 +149,6 @@ public class EntryCacheImpl implements EntryCache {
                     lastPosition, entriesRemoved, sizeRemoved);
         }
 
-        firstPosition.recycle();
         manager.entriesRemoved(sizeRemoved);
     }
 
@@ -157,8 +165,6 @@ public class EntryCacheImpl implements EntryCache {
                     ml.getName(), ledgerId, entriesRemoved, sizeRemoved);
         }
 
-        firstPosition.recycle();
-        lastPosition.recycle();
         manager.entriesRemoved(sizeRemoved);
     }
 
@@ -170,12 +176,12 @@ public class EntryCacheImpl implements EntryCache {
         }
         EntryImpl entry = entries.get(position);
         if (entry != null) {
-            EntryImpl cachedEntry = new EntryImpl(entry);
+            EntryImpl cachedEntry = EntryImpl.create(entry);
             entry.release();
             manager.mlFactoryMBean.recordCacheHit(cachedEntry.getLength());
             callback.readEntryComplete(cachedEntry, ctx);
         } else {
-            ReadCallback readCallback = (rc, ledgerHandle, sequence, obj) -> {
+            lh.asyncReadEntries(position.getEntryId(), position.getEntryId(), (rc, ledgerHandle, sequence, obj) -> {
                 if (rc != BKException.Code.OK) {
                     ml.invalidateLedgerHandle(ledgerHandle, rc);
                     callback.readEntryFailed(new ManagedLedgerException(BKException.create(rc)), obj);
@@ -183,18 +189,23 @@ public class EntryCacheImpl implements EntryCache {
                 }
 
                 if (sequence.hasMoreElements()) {
-                    EntryImpl returnEntry = new EntryImpl(sequence.nextElement());
+                    LedgerEntry ledgerEntry = sequence.nextElement();
+                    EntryImpl returnEntry = EntryImpl.create(ledgerEntry);
+
+                    // The EntryImpl is now the owner of the buffer, so we can release the original one
+                    ledgerEntry.getEntryBuffer().release();
 
                     manager.mlFactoryMBean.recordCacheMiss(1, returnEntry.getLength());
                     ml.mbean.addReadEntriesSample(1, returnEntry.getLength());
 
-                    callback.readEntryComplete(returnEntry, obj);
+                    ml.getExecutor().submitOrdered(ml.getName(), safeRun(() -> {
+                        callback.readEntryComplete(returnEntry, obj);
+                    }));
                 } else {
                     // got an empty sequence
                     callback.readEntryFailed(new ManagedLedgerException("Could not read given position"), obj);
                 }
-            };
-            lh.asyncReadEntries(position.getEntryId(), position.getEntryId(), readCallback, ctx);
+            }, ctx);
         }
     }
 
@@ -212,8 +223,6 @@ public class EntryCacheImpl implements EntryCache {
         }
 
         Collection<EntryImpl> cachedEntries = entries.getRange(firstPosition, lastPosition);
-        firstPosition.recycle();
-        lastPosition.recycle();
 
         if (cachedEntries.size() == entriesToRead) {
             long totalCachedSize = 0;
@@ -221,7 +230,7 @@ public class EntryCacheImpl implements EntryCache {
 
             // All entries found in cache
             for (EntryImpl entry : cachedEntries) {
-                entriesToReturn.add(new EntryImpl(entry));
+                entriesToReturn.add(EntryImpl.create(entry));
                 totalCachedSize += entry.getLength();
                 entry.release();
             }
@@ -261,7 +270,10 @@ public class EntryCacheImpl implements EntryCache {
                     final List<EntryImpl> entriesToReturn = Lists.newArrayListWithExpectedSize(entriesToRead);
                     while (sequence.hasMoreElements()) {
                         // Insert the entries at the end of the list (they will be unsorted for now)
-                        EntryImpl entry = new EntryImpl(sequence.nextElement());
+                        LedgerEntry ledgerEntry = sequence.nextElement();
+                        EntryImpl entry = EntryImpl.create(ledgerEntry);
+                        ledgerEntry.getEntryBuffer().release();
+
                         entriesToReturn.add(entry);
 
                         totalSize += entry.getLength();

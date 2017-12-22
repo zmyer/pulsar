@@ -1,17 +1,20 @@
 /**
- * Copyright 2016 Yahoo Inc.
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership.  The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
  *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
+ *   http://www.apache.org/licenses/LICENSE-2.0
  *
- *     http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
+ * Unless required by applicable law or agreed to in writing,
+ * software distributed under the License is distributed on an
+ * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+ * KIND, either express or implied.  See the License for the
+ * specific language governing permissions and limitations
+ * under the License.
  */
 package org.apache.bookkeeper.mledger.impl;
 
@@ -60,6 +63,8 @@ public class OpReadEntry implements ReadEntriesCallback {
     @Override
     public void readEntriesComplete(List<Entry> returnedEntries, Object ctx) {
         // Filter the returned entries for individual deleted messages
+        int entriesSize = returnedEntries.size();
+        final PositionImpl lastPosition = (PositionImpl) returnedEntries.get(entriesSize - 1).getPosition();
         if (log.isDebugEnabled()) {
             log.debug("[{}][{}] Read entries succeeded batch_size={} cumulative_size={} requested_count={}",
                     cursor.ledger.getName(), cursor.getName(), returnedEntries.size(), entries.size(), count);
@@ -67,7 +72,10 @@ public class OpReadEntry implements ReadEntriesCallback {
         List<Entry> filteredEntries = cursor.filterReadEntries(returnedEntries);
         entries.addAll(filteredEntries);
 
-        updateReadPosition(returnedEntries.get(returnedEntries.size() - 1).getPosition().getNext());
+        // if entries have been filtered out then try to skip reading of already deletedMessages in that range
+        final Position nexReadPosition = entriesSize != filteredEntries.size()
+                ? cursor.getNextAvailablePosition(lastPosition) : lastPosition.getNext();
+        updateReadPosition(nexReadPosition);
         checkReadCompletion();
     }
 
@@ -134,14 +142,14 @@ public class OpReadEntry implements ReadEntriesCallback {
         return cursor.ledger.getSlowestConsumer() == cursor;
     }
 
-    private final Handle recyclerHandle;
+    private final Handle<OpReadEntry> recyclerHandle;
 
-    private OpReadEntry(Handle recyclerHandle) {
+    private OpReadEntry(Handle<OpReadEntry> recyclerHandle) {
         this.recyclerHandle = recyclerHandle;
     }
 
     private static final Recycler<OpReadEntry> RECYCLER = new Recycler<OpReadEntry>() {
-        protected OpReadEntry newObject(Recycler.Handle recyclerHandle) {
+        protected OpReadEntry newObject(Recycler.Handle<OpReadEntry> recyclerHandle) {
             return new OpReadEntry(recyclerHandle);
         }
     };
@@ -153,7 +161,7 @@ public class OpReadEntry implements ReadEntriesCallback {
         ctx = null;
         entries = null;
         nextReadPosition = null;
-        RECYCLER.recycle(this, recyclerHandle);
+        recyclerHandle.recycle(this);
     }
 
     private static final Logger log = LoggerFactory.getLogger(OpReadEntry.class);

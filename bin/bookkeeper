@@ -1,18 +1,21 @@
 #!/usr/bin/env bash
 #
-# Copyright 2016 Yahoo Inc.
-#
-# Licensed under the Apache License, Version 2.0 (the "License");
-# you may not use this file except in compliance with the License.
-# You may obtain a copy of the License at
-#
-#     http://www.apache.org/licenses/LICENSE-2.0
-#
-# Unless required by applicable law or agreed to in writing, software
-# distributed under the License is distributed on an "AS IS" BASIS,
-# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-# See the License for the specific language governing permissions and
-# limitations under the License.
+# Licensed to the Apache Software Foundation (ASF) under one
+# or more contributor license agreements.  See the NOTICE file
+# distributed with this work for additional information
+# regarding copyright ownership.  The ASF licenses this file
+# to you under the Apache License, Version 2.0 (the
+# "License"); you may not use this file except in compliance
+# with the License.  You may obtain a copy of the License at
+# 
+#   http://www.apache.org/licenses/LICENSE-2.0
+# 
+# Unless required by applicable law or agreed to in writing,
+# software distributed under the License is distributed on an
+# "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+# KIND, either express or implied.  See the License for the
+# specific language governing permissions and limitations
+# under the License.
 #
 
 # check if net.ipv6.bindv6only is set to 1
@@ -47,7 +50,7 @@ fi
 BINDIR=`dirname "$0"`
 BK_HOME=`cd $BINDIR/..;pwd`
 
-DEFAULT_CONF=$BK_HOME/conf/bk_server.conf
+DEFAULT_CONF=$BK_HOME/conf/bookkeper.conf
 DEFAULT_LOG_CONF=$BK_HOME/conf/log4j.properties
 
 source $BK_HOME/conf/bkenv.sh
@@ -66,14 +69,14 @@ else
 fi
 
 # exclude tests jar
-RELEASE_JAR=`ls $BK_HOME/bookkeeper-server-*.jar 2> /dev/null | grep -v tests | tail -1` 
+RELEASE_JAR=`ls $BK_HOME/bookkeeper-server-*.jar 2> /dev/null | grep -v tests | tail -1`
 if [ $? == 0 ]; then
     BOOKIE_JAR=$RELEASE_JAR
 fi
 
 # exclude tests jar
 BUILT_JAR=`ls $BK_HOME/target/bookkeeper-server-*.jar 2> /dev/null | grep -v tests | tail -1`
-if [ $? != 0 ] && [ ! -e "$BOOKIE_JAR" ]; then 
+if [ $? != 0 ] && [ ! -e "$BOOKIE_JAR" ]; then
     echo "\nCouldn't find bookkeeper jar.";
     echo "Make sure you've run 'mvn package'\n";
     exit 1;
@@ -112,7 +115,7 @@ add_maven_deps_to_classpath() {
     if [ "$MAVEN_HOME" != "" ]; then
 	MVN=${MAVEN_HOME}/bin/mvn
     fi
-    
+
     # Need to generate classpath from maven pom. This is costly so generate it
     # and cache it. Save the file into our target dir so a mvn clean will get
     # clean it up and force us create a new one.
@@ -195,4 +198,3 @@ elif [ $COMMAND == "help" ]; then
 else
     exec $JAVA $OPTS $COMMAND $@
 fi
-

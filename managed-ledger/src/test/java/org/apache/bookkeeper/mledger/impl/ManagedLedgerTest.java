@@ -1,17 +1,20 @@
 /**
- * Copyright 2016 Yahoo Inc.
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership.  The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
  *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
+ *   http://www.apache.org/licenses/LICENSE-2.0
  *
- *     http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
+ * Unless required by applicable law or agreed to in writing,
+ * software distributed under the License is distributed on an
+ * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+ * KIND, either express or implied.  See the License for the
+ * specific language governing permissions and limitations
+ * under the License.
  */
 package org.apache.bookkeeper.mledger.impl;
 
@@ -31,10 +34,12 @@ import java.util.Iterator;
 import java.util.List;
 import java.util.Set;
 import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.CyclicBarrier;
 import java.util.concurrent.Executor;
 import java.util.concurrent.Executors;
 import java.util.concurrent.RejectedExecutionException;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Predicate;
 
 import org.apache.bookkeeper.client.BKException;
@@ -56,11 +61,14 @@ import org.apache.bookkeeper.mledger.ManagedLedgerException.MetaStoreException;
 import org.apache.bookkeeper.mledger.ManagedLedgerFactory;
 import org.apache.bookkeeper.mledger.Position;
 import org.apache.bookkeeper.mledger.impl.MetaStore.MetaStoreCallback;
-import org.apache.bookkeeper.mledger.impl.MetaStore.Version;
+import org.apache.bookkeeper.mledger.impl.MetaStore.Stat;
 import org.apache.bookkeeper.mledger.proto.MLDataFormats.ManagedLedgerInfo;
 import org.apache.bookkeeper.mledger.proto.MLDataFormats.ManagedLedgerInfo.LedgerInfo;
 import org.apache.bookkeeper.mledger.util.Pair;
 import org.apache.bookkeeper.test.MockedBookKeeperTestCase;
+import org.apache.pulsar.common.api.DoubleByteBuf;
+import org.apache.pulsar.common.api.proto.PulsarApi.MessageMetadata;
+import org.apache.pulsar.common.util.protobuf.ByteBufCodedOutputStream;
 import org.apache.zookeeper.CreateMode;
 import org.apache.zookeeper.KeeperException.Code;
 import org.apache.zookeeper.ZooDefs;
@@ -71,9 +79,6 @@ import org.testng.annotations.Test;
 
 import com.google.common.base.Charsets;
 import com.google.common.collect.Sets;
-import com.yahoo.pulsar.common.api.DoubleByteBuf;
-import com.yahoo.pulsar.common.api.proto.PulsarApi.MessageMetadata;
-import com.yahoo.pulsar.common.util.protobuf.ByteBufCodedOutputStream;
 
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.PooledByteBufAllocator;
@@ -102,14 +107,14 @@ public class ManagedLedgerTest extends MockedBookKeeperTestCase {
             List<Entry> entries = cursor.readEntries(20);
             log.debug("Read {} entries", entries.size());
 
+            // Acknowledge only on last entry
+            Entry lastEntry = entries.get(entries.size() - 1);
+            cursor.markDelete(lastEntry.getPosition());
+
             for (Entry entry : entries) {
                 log.info("Read entry. Position={} Content='{}'", entry.getPosition(), new String(entry.getData()));
                 entry.release();
             }
-
-            // Acknowledge only on last entry
-            Entry lastEntry = entries.get(entries.size() - 1);
-            cursor.markDelete(lastEntry.getPosition());
 
             log.info("-----------------------");
         }
@@ -202,7 +207,6 @@ public class ManagedLedgerTest extends MockedBookKeeperTestCase {
 
         List<Entry> entries = cursor.readEntries(2);
         assertEquals(entries.size(), 2);
-        entries.forEach(e -> e.release());
 
         assertEquals(cursor.getNumberOfEntries(), 0);
         assertEquals(cursor.getNumberOfEntriesInBacklog(), 2);
@@ -211,6 +215,7 @@ public class ManagedLedgerTest extends MockedBookKeeperTestCase {
         assertEquals(ledger.getNumberOfEntries(), 2);
         assertEquals(ledger.getNumberOfActiveEntries(), 2);
         cursor.markDelete(entries.get(0).getPosition());
+        entries.forEach(e -> e.release());
 
         assertEquals(cursor.getNumberOfEntries(), 0);
         assertEquals(cursor.getNumberOfEntriesInBacklog(), 1);
@@ -268,10 +273,11 @@ public class ManagedLedgerTest extends MockedBookKeeperTestCase {
 
                                         assertEquals(entries.size(), 1);
                                         Entry entry = entries.get(0);
+                                        final Position position = entry.getPosition();
                                         assertEquals(new String(entry.getDataAndRelease(), Encoding), "test");
 
-                                        log.debug("Mark-Deleting to position {}", entry.getPosition());
-                                        cursor.asyncMarkDelete(entry.getPosition(), new MarkDeleteCallback() {
+                                        log.debug("Mark-Deleting to position {}", position);
+                                        cursor.asyncMarkDelete(position, new MarkDeleteCallback() {
                                             @Override
                                             public void markDeleteComplete(Object ctx) {
                                                 log.debug("Mark delete complete");
@@ -1463,7 +1469,7 @@ public class ManagedLedgerTest extends MockedBookKeeperTestCase {
         final MetaStore store = factory.getMetaStore();
         store.getManagedLedgerInfo("my_test_ledger", new MetaStoreCallback<ManagedLedgerInfo>() {
             @Override
-            public void operationComplete(ManagedLedgerInfo result, Version version) {
+            public void operationComplete(ManagedLedgerInfo result, Stat version) {
                 // Update the list
                 ManagedLedgerInfo.Builder info = ManagedLedgerInfo.newBuilder(result);
                 info.clearLedgerInfo();
@@ -1472,7 +1478,7 @@ public class ManagedLedgerTest extends MockedBookKeeperTestCase {
 
                 store.asyncUpdateLedgerIds("my_test_ledger", info.build(), version, new MetaStoreCallback<Void>() {
                     @Override
-                    public void operationComplete(Void result, Version version) {
+                    public void operationComplete(Void result, Stat version) {
                         counter.countDown();
                     }
 
@@ -1715,7 +1721,7 @@ public class ManagedLedgerTest extends MockedBookKeeperTestCase {
     @Test
     public void testBackwardCompatiblityForMeta() throws Exception {
         final ManagedLedgerInfo[] storedMLInfo = new ManagedLedgerInfo[3];
-        final Version[] versions = new Version[1];
+        final Stat[] versions = new Stat[1];
 
         ManagedLedgerFactory factory = new ManagedLedgerFactoryImpl(bkc, bkc.getZkHandle());
         ManagedLedgerConfig conf = new ManagedLedgerConfig();
@@ -1735,7 +1741,7 @@ public class ManagedLedgerTest extends MockedBookKeeperTestCase {
         // obtain the ledger info
         store.getManagedLedgerInfo("backward_test_ledger", new MetaStoreCallback<ManagedLedgerInfo>() {
             @Override
-            public void operationComplete(ManagedLedgerInfo result, Version version) {
+            public void operationComplete(ManagedLedgerInfo result, Stat version) {
                 storedMLInfo[0] = result;
                 versions[0] = version;
                 l1.countDown();
@@ -1764,7 +1770,7 @@ public class ManagedLedgerTest extends MockedBookKeeperTestCase {
         CountDownLatch l2 = new CountDownLatch(1);
         store.asyncUpdateLedgerIds("backward_test_ledger", storedMLInfo[1], versions[0], new MetaStoreCallback<Void>() {
             @Override
-            public void operationComplete(Void result, Version version) {
+            public void operationComplete(Void result, Stat version) {
                 l2.countDown();
             }
 
@@ -1877,37 +1883,36 @@ public class ManagedLedgerTest extends MockedBookKeeperTestCase {
         // read 20 entries
         final int readEntries = 20;
         List<Entry> entries1 = cursor1.readEntries(readEntries);
+        // Acknowledge only on last entry
+        cursor1.markDelete(entries1.get(entries1.size() - 1).getPosition());
         for (Entry entry : entries1) {
             log.info("Read entry. Position={} Content='{}'", entry.getPosition(), new String(entry.getData()));
             entry.release();
         }
-        // Acknowledge only on last entry
-        cursor1.markDelete(entries1.get(entries1.size() - 1).getPosition());
 
         // read after a second: as RateLimiter limits triggering of removing cache
         Thread.sleep(1000);
 
         List<Entry> entries2 = cursor2.readEntries(readEntries);
+        // Acknowledge only on last entry
+        cursor2.markDelete((entries2.get(entries2.size() - 1)).getPosition());
         for (Entry entry : entries2) {
             log.info("Read entry. Position={} Content='{}'", entry.getPosition(), new String(entry.getData()));
             entry.release();
         }
-        // Acknowledge only on last entry
-        cursor2.markDelete((entries2.get(entries2.size() - 1)).getPosition());
 
         // (3) Validate: cache should remove all entries read by both active cursors
-        System.out.println(
-                "expected, found :" + (5 * (totalInsertedEntries - readEntries)) + ", " + entryCache.getSize());
+		log.info("expected, found : {}, {}", (5 * (totalInsertedEntries - readEntries)), entryCache.getSize());
         assertEquals((5 * (totalInsertedEntries - readEntries)), entryCache.getSize());
 
         final int remainingEntries = totalInsertedEntries - readEntries;
         entries1 = cursor1.readEntries(remainingEntries);
+        // Acknowledge only on last entry
+        cursor1.markDelete(entries1.get(entries1.size() - 1).getPosition());
         for (Entry entry : entries1) {
             log.info("Read entry. Position={} Content='{}'", entry.getPosition(), new String(entry.getData()));
             entry.release();
         }
-        // Acknowledge only on last entry
-        cursor1.markDelete(entries1.get(entries1.size() - 1).getPosition());
 
         // (4) Validate: cursor2 is active cursor and has not read these entries yet: so, cache should not remove these
         // entries
@@ -2055,6 +2060,63 @@ public class ManagedLedgerTest extends MockedBookKeeperTestCase {
 
         // verify: cursor2 has not consumed messages so, above maxBacklog threshold => inactive
         assertFalse(cursor2.isActive());
+
+        ledger.close();
+    }
+
+    @Test
+    public void testConcurrentOpenCursor() throws Exception {
+        ManagedLedgerImpl ledger = (ManagedLedgerImpl) factory.open("testConcurrentOpenCursor");
+
+        final AtomicReference<ManagedCursor> cursor1 = new AtomicReference<>(null);
+        final AtomicReference<ManagedCursor> cursor2 = new AtomicReference<>(null);
+        final CyclicBarrier barrier = new CyclicBarrier(2);
+        final CountDownLatch latch = new CountDownLatch(2);
+
+        cachedExecutor.execute(() -> {
+            try {
+                barrier.await();
+            } catch (Exception e) {
+            }
+            ledger.asyncOpenCursor("c1", new OpenCursorCallback() {
+
+                @Override
+                public void openCursorFailed(ManagedLedgerException exception, Object ctx) {
+                    latch.countDown();
+                }
+
+                @Override
+                public void openCursorComplete(ManagedCursor cursor, Object ctx) {
+                    cursor1.set(cursor);
+                    latch.countDown();
+                }
+            }, null);
+        });
+
+        cachedExecutor.execute(() -> {
+            try {
+                barrier.await();
+            } catch (Exception e) {
+            }
+            ledger.asyncOpenCursor("c1", new OpenCursorCallback() {
+
+                @Override
+                public void openCursorFailed(ManagedLedgerException exception, Object ctx) {
+                    latch.countDown();
+                }
+
+                @Override
+                public void openCursorComplete(ManagedCursor cursor, Object ctx) {
+                    cursor2.set(cursor);
+                    latch.countDown();
+                }
+            }, null);
+        });
+
+        latch.await();
+        assertNotNull(cursor1.get());
+        assertNotNull(cursor2.get());
+        assertEquals(cursor1.get(), cursor2.get());
 
         ledger.close();
     }

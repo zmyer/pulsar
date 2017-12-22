@@ -1,18 +1,21 @@
 <!--
 
-    Copyright 2016 Yahoo Inc.
+    Licensed to the Apache Software Foundation (ASF) under one
+    or more contributor license agreements.  See the NOTICE file
+    distributed with this work for additional information
+    regarding copyright ownership.  The ASF licenses this file
+    to you under the Apache License, Version 2.0 (the
+    "License"); you may not use this file except in compliance
+    with the License.  You may obtain a copy of the License at
 
-    Licensed under the Apache License, Version 2.0 (the "License");
-    you may not use this file except in compliance with the License.
-    You may obtain a copy of the License at
+      http://www.apache.org/licenses/LICENSE-2.0
 
-        http://www.apache.org/licenses/LICENSE-2.0
-
-    Unless required by applicable law or agreed to in writing, software
-    distributed under the License is distributed on an "AS IS" BASIS,
-    WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-    See the License for the specific language governing permissions and
-    limitations under the License.
+    Unless required by applicable law or agreed to in writing,
+    software distributed under the License is distributed on an
+    "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+    KIND, either express or implied.  See the License for the
+    specific language governing permissions and limitations
+    under the License.
 
 -->
 <project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
@@ -20,9 +23,9 @@
   <modelVersion>4.0.0</modelVersion>
 
   <parent>
-    <groupId>com.yahoo.pulsar</groupId>
+    <groupId>org.apache.pulsar</groupId>
     <artifactId>pulsar</artifactId>
-    <version>1.15-SNAPSHOT</version>
+    <version>1.22.0-incubating-SNAPSHOT</version>
     <relativePath>..</relativePath>
   </parent>
 
@@ -31,7 +34,6 @@
   <name>Pulsar Broker</name>
 
   <dependencies>
-
     <dependency>
       <groupId>commons-codec</groupId>
       <artifactId>commons-codec</artifactId>
@@ -54,7 +56,7 @@
 
     <dependency>
       <groupId>${project.groupId}</groupId>
-      <artifactId>pulsar-client</artifactId>
+      <artifactId>pulsar-client-original</artifactId>
       <version>${project.version}</version>
     </dependency>
 
@@ -143,6 +145,11 @@
     </dependency>
 
     <dependency>
+      <groupId>org.glassfish.jersey.containers</groupId>
+      <artifactId>jersey-container-servlet</artifactId>
+    </dependency>
+
+    <dependency>
       <groupId>org.glassfish.jersey.media</groupId>
       <artifactId>jersey-media-json-jackson</artifactId>
     </dependency>
@@ -172,10 +179,14 @@
       <artifactId>swagger-annotations</artifactId>
     </dependency>
 
+     <dependency>
+      <groupId>io.prometheus</groupId>
+      <artifactId>simpleclient</artifactId>
+    </dependency>
+
     <dependency>
-      <artifactId>log4j</artifactId>
-      <groupId>log4j</groupId>
-      <scope>test</scope>
+      <groupId>io.prometheus</groupId>
+      <artifactId>simpleclient_hotspot</artifactId>
     </dependency>
 
     <dependency>
@@ -189,77 +200,173 @@
     </dependency>
 
     <dependency>
-      <groupId>org.json</groupId>
-      <artifactId>json</artifactId>
+      <groupId>com.google.code.gson</groupId>
+      <artifactId>gson</artifactId>
     </dependency>
 
     <dependency>
-      <groupId>org.mockito</groupId>
-      <artifactId>mockito-core</artifactId>
-      <scope>test</scope>
+      <groupId>com.github.zafarkhaja</groupId>
+      <artifactId>java-semver</artifactId>
+    </dependency>
+
+    <!-- aspectJ dependencies -->
+    <dependency>
+      <groupId>org.aspectj</groupId>
+      <artifactId>aspectjrt</artifactId>
     </dependency>
 
     <dependency>
-      <groupId>org.powermock</groupId>
-      <artifactId>powermock-api-mockito</artifactId>
-      <scope>test</scope>
+      <groupId>org.aspectj</groupId>
+      <artifactId>aspectjweaver</artifactId>
     </dependency>
 
     <dependency>
-      <groupId>org.powermock</groupId>
-      <artifactId>powermock-module-testng</artifactId>
-      <scope>test</scope>
+      <groupId>com.ea.agentloader</groupId>
+      <artifactId>ea-agent-loader</artifactId>
     </dependency>
   </dependencies>
 
   <build>
     <plugins>
       <plugin>
-        <groupId>org.apache.maven.plugins</groupId>
-        <artifactId>maven-surefire-plugin</artifactId>
+        <groupId>org.codehaus.mojo</groupId>
+        <artifactId>aspectj-maven-plugin</artifactId>
+        <version>1.10</version>
         <configuration>
-          <properties>
-            <property>
-              <name>listener</name>
-              <value>org.testng.listener.TestListener</value>
-            </property>
-          </properties>
-        </configuration>
-      </plugin>
-      <plugin>
-        <groupId>com.github.kongchen</groupId>
-        <artifactId>swagger-maven-plugin</artifactId>
-        <version>3.1.1</version>
-        <configuration>
-          <apiSources>
-            <apiSource>
-              <springmvc>false</springmvc>
-              <locations>com.yahoo.pulsar.broker.admin</locations>
-              <schemes>http,https</schemes>
-              <basePath>/admin</basePath>
-              <info>
-                <title>Pulsar Admin REST API</title>
-                <version>v1</version>
-                <description>This provides the REST API for admin
-                  operations</description>
-                <license>
-                  <url>http://www.apache.org/licenses/LICENSE-2.0.html</url>
-                  <name>Apache 2.0</name>
-                </license>
-              </info>
-              <swaggerDirectory>${basedir}/target/docs</swaggerDirectory>
-            </apiSource>
-          </apiSources>
+          <complianceLevel>1.8</complianceLevel>
+          <source>1.8</source>
+          <target>1.8</target>
+          <showWeaveInfo>true</showWeaveInfo>
+          <weaveDependencies>
+            <weaveDependency>
+              <groupId>org.apache.zookeeper</groupId>
+              <artifactId>zookeeper</artifactId>
+            </weaveDependency>
+          </weaveDependencies>
         </configuration>
         <executions>
           <execution>
-            <phase>compile</phase>
+            <phase>process-sources</phase>
             <goals>
-              <goal>generate</goal>
+              <goal>compile</goal>
+            </goals>
+          </execution>
+        </executions>
+      </plugin>
+      <plugin>
+        <groupId>org.apache.maven.plugins</groupId>
+        <artifactId>maven-jar-plugin</artifactId>
+        <executions>
+          <execution>
+            <goals>
+              <goal>test-jar</goal>
             </goals>
           </execution>
         </executions>
       </plugin>
     </plugins>
+    <resources>
+      <resource>
+        <directory>src/main/resources</directory>
+        <filtering>true</filtering>
+      </resource>
+    </resources>
   </build>
+
+  <profiles>
+    <profile>
+      <id>swagger</id>
+      <build>
+        <plugins>
+          <plugin>
+            <groupId>com.github.kongchen</groupId>
+            <artifactId>swagger-maven-plugin</artifactId>
+            <version>3.1.5</version>
+            <configuration>
+              <apiSources>
+                <apiSource>
+                  <springmvc>false</springmvc>
+                  <locations>org.apache.pulsar.broker.admin</locations>
+                  <schemes>http,https</schemes>
+                  <basePath>/admin</basePath>
+                  <info>
+                    <title>Pulsar Admin REST API</title>
+                    <version>v1</version>
+                    <description>This provides the REST API for admin
+                      operations</description>
+                    <license>
+                      <url>http://www.apache.org/licenses/LICENSE-2.0.html</url>
+                      <name>Apache 2.0</name>
+                    </license>
+                  </info>
+                  <swaggerDirectory>${basedir}/target/docs</swaggerDirectory>
+                </apiSource>
+              </apiSources>
+            </configuration>
+            <executions>
+              <execution>
+                <phase>compile</phase>
+                <goals>
+                  <goal>generate</goal>
+                </goals>
+              </execution>
+            </executions>
+          </plugin>
+        </plugins>
+      </build>
+    </profile>
+    <profile>
+      <id>only-eclipse</id>
+      <activation>
+        <property>
+          <name>m2e.version</name>
+        </property>
+      </activation>
+      <build>
+        <pluginManagement>
+          <plugins>
+            <plugin>
+              <!--This plugin's configuration is used to store Eclipse m2e settings only.
+                  It has no influence on the Maven build itself.-->
+              <groupId>org.eclipse.m2e</groupId>
+              <artifactId>lifecycle-mapping</artifactId>
+              <version>1.0.0</version>
+              <configuration>
+                <lifecycleMappingMetadata>
+                  <pluginExecutions>
+                    <pluginExecution>
+                      <pluginExecutionFilter>
+                        <groupId>org.codehaus.mojo</groupId>
+                        <artifactId>aspectj-maven-plugin</artifactId>
+                        <versionRange>[1.10,)</versionRange>
+                        <goals>
+                          <goal>compile</goal>
+                        </goals>
+                      </pluginExecutionFilter>
+                      <action>
+                        <ignore></ignore>
+                      </action>
+                    </pluginExecution>
+                    <pluginExecution>
+                      <pluginExecutionFilter>
+                        <groupId>org.apache.maven.plugins</groupId>
+                        <artifactId>maven-remote-resources-plugin</artifactId>
+                        <versionRange>[1.5,)</versionRange>
+                        <goals>
+                          <goal>process</goal>
+                        </goals>
+                      </pluginExecutionFilter>
+                      <action>
+                        <ignore></ignore>
+                      </action>
+                    </pluginExecution>
+                  </pluginExecutions>
+                </lifecycleMappingMetadata>
+              </configuration>
+            </plugin>
+          </plugins>
+        </pluginManagement>
+      </build>
+    </profile>
+  </profiles>
 </project>

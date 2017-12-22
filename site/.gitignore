@@ -1,0 +1,17 @@
+# Website artifacts
+.jekyll-metadata
+.bundle/
+node_modules/
+vendor/
+api/admin/
+api/client/
+api/cpp
+api/python
+generated/
+.sass-cache
+_data/config/*.bak
+_data/admin-rest-api-swagger.json
+_data/protobuf.json
+scripts/protoc-gen-doc
+scripts/doxygen
+scripts/htmltest-*

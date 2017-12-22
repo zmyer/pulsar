@@ -1,21 +1,25 @@
 /**
- * Copyright 2016 Yahoo Inc.
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership.  The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
  *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
+ *   http://www.apache.org/licenses/LICENSE-2.0
  *
- *     http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
+ * Unless required by applicable law or agreed to in writing,
+ * software distributed under the License is distributed on an
+ * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+ * KIND, either express or implied.  See the License for the
+ * specific language governing permissions and limitations
+ * under the License.
  */
 package org.apache.bookkeeper.mledger;
 
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 
 import org.apache.bookkeeper.mledger.AsyncCallbacks.ClearBacklogCallback;
@@ -52,6 +56,11 @@ public interface ManagedCursor {
      * @return the cursor name
      */
     public String getName();
+
+    /**
+     * Return any properties that were associated with the last stored position
+     */
+    public Map<String, Long> getProperties();
 
     /**
      * Read entries from the ManagedLedger, up to the specified number. The returned list can be smaller.
@@ -176,9 +185,24 @@ public interface ManagedCursor {
      *
      * @param position
      *            the last position that have been successfully consumed
+     *
      * @throws ManagedLedgerException
      */
     public void markDelete(Position position) throws InterruptedException, ManagedLedgerException;
+
+    /**
+     * This signals that the reader is done with all the entries up to "position" (included). This can potentially
+     * trigger a ledger deletion, if all the other cursors are done too with the underlying ledger.
+     *
+     * @param position
+     *            the last position that have been successfully consumed
+     * @param properties
+     *            additional user-defined properties that can be associated with a particular cursor position
+     *
+     * @throws ManagedLedgerException
+     */
+    public void markDelete(Position position, Map<String, Long> properties)
+            throws InterruptedException, ManagedLedgerException;
 
     /**
      * Asynchronous mark delete
@@ -192,6 +216,21 @@ public interface ManagedCursor {
      *            opaque context
      */
     public void asyncMarkDelete(Position position, MarkDeleteCallback callback, Object ctx);
+
+    /**
+     * Asynchronous mark delete
+     *
+     * @see #markDelete(Position)
+     * @param position
+     *            the last position that have been successfully consumed
+     * @param properties
+     *            additional user-defined properties that can be associated with a particular cursor position
+     * @param callback
+     *            callback object
+     * @param ctx
+     *            opaque context
+     */
+    public void asyncMarkDelete(Position position, Map<String, Long> properties, MarkDeleteCallback callback, Object ctx);
 
     /**
      * Delete a single message
@@ -369,8 +408,10 @@ public interface ManagedCursor {
      *            callback object returning the list of entries
      * @param ctx
      *            opaque context
+     * @return skipped positions
+     *              set of positions which are already deleted/acknowledged and skipped while replaying them
      */
-    public void asyncReplayEntries(Set<? extends Position> positions, ReadEntriesCallback callback, Object ctx);
+    public Set<? extends Position> asyncReplayEntries(Set<? extends Position> positions, ReadEntriesCallback callback, Object ctx);
 
     /**
      * Close the cursor and releases the associated resources.
@@ -399,20 +440,53 @@ public interface ManagedCursor {
 
     /**
      * Activate cursor: EntryCacheManager caches entries only for activated-cursors
-     * 
+     *
      */
     public void setActive();
 
     /**
      * Deactivate cursor
-     * 
+     *
      */
     public void setInactive();
 
     /**
      * Checks if cursor is active or not.
-     * 
+     *
      * @return
      */
     public boolean isActive();
+
+    /**
+     * Tells whether the cursor is durable or just kept in memory
+     */
+    public boolean isDurable();
+
+    /**
+     * Returns total number of entries from the first not-acked message to current dispatching position 
+     * 
+     * @return
+     */
+    long getNumberOfEntriesSinceFirstNotAckedMessage();
+
+    /**
+     * Returns number of mark-Delete range
+     * 
+     * @return
+     */
+    int getTotalNonContiguousDeletedMessagesRange();
+
+    /**
+     * Returns cursor throttle mark-delete rate
+     * 
+     * @return
+     */
+    double getThrottleMarkDelete();
+
+    /**
+     * Update throttle mark delete rate
+     * 
+     */
+    void setThrottleMarkDelete(double throttleMarkDelete);
+
 }

@@ -1,0 +1,139 @@
+#
+# Licensed to the Apache Software Foundation (ASF) under one
+# or more contributor license agreements.  See the NOTICE file
+# distributed with this work for additional information
+# regarding copyright ownership.  The ASF licenses this file
+# to you under the Apache License, Version 2.0 (the
+# "License"); you may not use this file except in compliance
+# with the License.  You may obtain a copy of the License at
+#
+#   http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing,
+# software distributed under the License is distributed on an
+# "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+# KIND, either express or implied.  See the License for the
+# specific language governing permissions and limitations
+# under the License.
+#
+
+groups:
+- title: Getting started
+  dir: getting-started
+  docs:
+  - title: Run Pulsar locally
+    endpoint: LocalCluster
+  - title: Pulsar in Docker
+    endpoint: docker
+  - title: Client libraries
+    endpoint: Clients
+  - title: Concepts and architecture
+    endpoint: ConceptsAndArchitecture
+
+- title: Deployment
+  dir: deployment
+  docs:
+  - title: Single cluster on bare metal
+    endpoint: cluster
+  - title: Multi-cluster instance on bare metal
+    endpoint: instance
+  - title: Pulsar on Kubernetes
+    endpoint: Kubernetes
+  - title: Pulsar on Google Container Engine
+    endpoint: Kubernetes/#pulsar-on-google-container-engine
+  - title: Pulsar on AWS
+    endpoint: Kubernetes/#pulsar-on-amazon-web-services
+  - title: Pulsar on DC/OS
+    endpoint: dcos
+  - title: Monitoring
+    endpoint: Monitoring
+
+- title: Pulsar administration
+  dir: admin
+  docs:
+  - title: ZooKeeper and BookKeeper
+    endpoint: ZooKeeperBookKeeper
+  - title: Geo-replication
+    endpoint: GeoReplication
+  - title: Authentication and authorization
+    endpoint: Authz
+  - title: Dashboard
+    endpoint: Dashboard
+  - title: Pulsar statistics
+    endpoint: Stats
+  - title: Modular load manager
+    endpoint: ModularLoadManager
+
+- title: Client libraries
+  dir: clients
+  docs:
+  - title: Java client
+    endpoint: Java
+  - title: C++ client
+    endpoint: Cpp
+  - title: Python client
+    endpoint: Python
+  - title: WebSocket API
+    endpoint: WebSocket
+
+- title: Admin API
+  dir: admin-api
+  docs:
+  - title: Overview
+    endpoint: overview
+  - title: Clusters
+    endpoint: clusters
+  - title: Properties
+    endpoint: properties
+  - title: Brokers
+    endpoint: brokers
+  - title: Namespaces
+    endpoint: namespaces
+  - title: Permissions
+    endpoint: permissions
+  - title: Persistent topics
+    endpoint: persistent-topics
+  - title: Non-Persistent topics
+    endpoint: non-persistent-topics
+  - title: Partitioned topics
+    endpoint: partitioned-topics
+
+- title: Adaptors
+  dir: adaptors
+  docs:
+  - title: Apache Kafka client wrapper
+    endpoint: KafkaWrapper
+  - title: Spark Streaming
+    endpoint: PulsarSpark
+  - title: Apache Storm
+    endpoint: PulsarStorm
+
+- title: Advanced
+  dir: advanced
+  docs:
+  - title: Partitioned topics
+    endpoint: PartitionedTopics
+  - title: Retention and expiry
+    endpoint: RetentionExpiry
+  - title: Encryption
+    endpoint: Encryption
+
+- title: Developing Pulsar
+  dir: project
+  docs:
+  - title: Simulation tools
+    endpoint: SimulationTools
+  - title: Pulsar binary protocol
+    endpoint: BinaryProtocol
+  - title: Codebase
+    endpoint: Codebase
+
+- title: Reference
+  dir: reference
+  docs:
+  - title: Pulsar REST API
+    endpoint: RestApi
+  - title: Command-line tools
+    endpoint: CliTools
+  - title: Pulsar configuration
+    endpoint: Configuration

@@ -5,8 +5,12 @@ test-results
 dependency-reduced-pom.xml
 logs
 /data
+pulsar-broker/tmp.*
+pulsar-broker/src/test/resources/log4j.properties
+*.log
 
 *.versionsBackup
+*/bin
 
 # Eclipse
 .classpath
@@ -25,3 +29,15 @@ logs
 # Maven
 log/
 target/
+
+# Python
+*.pyc
+
+# Perf tools
+*.hgrm
+
+# tmp files
+*.pid
+
+# Generated website
+generated-site/

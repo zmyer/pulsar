@@ -1,18 +1,21 @@
 <!--
 
-    Copyright 2016 Yahoo Inc.
+    Licensed to the Apache Software Foundation (ASF) under one
+    or more contributor license agreements.  See the NOTICE file
+    distributed with this work for additional information
+    regarding copyright ownership.  The ASF licenses this file
+    to you under the Apache License, Version 2.0 (the
+    "License"); you may not use this file except in compliance
+    with the License.  You may obtain a copy of the License at
 
-    Licensed under the Apache License, Version 2.0 (the "License");
-    you may not use this file except in compliance with the License.
-    You may obtain a copy of the License at
+      http://www.apache.org/licenses/LICENSE-2.0
 
-        http://www.apache.org/licenses/LICENSE-2.0
-
-    Unless required by applicable law or agreed to in writing, software
-    distributed under the License is distributed on an "AS IS" BASIS,
-    WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-    See the License for the specific language governing permissions and
-    limitations under the License.
+    Unless required by applicable law or agreed to in writing,
+    software distributed under the License is distributed on an
+    "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+    KIND, either express or implied.  See the License for the
+    specific language governing permissions and limitations
+    under the License.
 
 -->
 <assembly
@@ -37,20 +40,31 @@
       <directory>${basedir}/../bin</directory>
       <fileMode>755</fileMode>
     </fileSet>
+    <fileSet>
+      <directory>${basedir}/licenses</directory>
+    </fileSet>
   </fileSets>
   <files>
     <file>
-      <source>${basedir}/../README.md</source>
+      <source>${basedir}/../DISCLAIMER</source>
       <outputDirectory>.</outputDirectory>
       <fileMode>644</fileMode>
     </file>
     <file>
-      <source>${basedir}/../LICENSE</source>
+      <source>${basedir}/src/assemble/README.bin.txt</source>
+      <destName>README</destName>
       <outputDirectory>.</outputDirectory>
       <fileMode>644</fileMode>
     </file>
     <file>
-      <source>${basedir}/../NOTICE</source>
+      <source>${basedir}/src/assemble/LICENSE.bin.txt</source>
+      <destName>LICENSE</destName>
+      <outputDirectory>.</outputDirectory>
+      <fileMode>644</fileMode>
+    </file>
+    <file>
+      <source>${basedir}/src/assemble/NOTICE.bin.txt</source>
+      <destName>NOTICE</destName>
       <outputDirectory>.</outputDirectory>
       <fileMode>644</fileMode>
     </file>
@@ -59,8 +73,34 @@
     <dependencySet>
       <outputDirectory>lib</outputDirectory>
       <unpack>false</unpack>
-      <scope>runtime</scope>
+      <scope>compile</scope>
       <useProjectArtifact>false</useProjectArtifact>
+      <!-- Include 'groupId' in the dependencies Jar names to better identify
+           the provenance of the jar -->
+      <outputFileNameMapping>${artifact.groupId}-${artifact.artifactId}-${artifact.version}${dashClassifier?}.${artifact.extension}</outputFileNameMapping>
+
+      <excludes>
+        <!-- All these dependencies are already included in netty-all -->
+        <exclude>io.netty:netty-common</exclude>
+        <exclude>io.netty:netty-resolver</exclude>
+        <exclude>io.netty:netty-resolver-dns</exclude>
+        <exclude>io.netty:netty-codec-dns</exclude>
+        <exclude>io.netty:netty-transport-native-unix-common</exclude>
+        <exclude>io.netty:netty-buffer</exclude>
+        <exclude>io.netty:netty-codec-http</exclude>
+        <exclude>io.netty:netty-codec</exclude>
+        <exclude>io.netty:netty-transport</exclude>
+        <exclude>io.netty:netty-handler</exclude>
+        <exclude>io.netty:netty-transport-native-epoll</exclude>
+        <exclude>io.netty:netty-codec-http</exclude>
+
+        <!-- Already included in pulsar-zookeeper instrumented jar -->
+        <exclude>org.apache.zookeeper:zookeeper</exclude>
+
+        <!-- Explicitely remove JUnit which is getting pulled in even
+             though it's set to the scope 'test' -->
+        <exclude>junit:junit</exclude>
+      </excludes>
     </dependencySet>
   </dependencySets>
 </assembly>
